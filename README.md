@@ -21,3 +21,7 @@ pablet is a simple app that lets you control your cursor from your phone. It doe
 2. Build the app using [capacitor](https://capacitorjs.com/solution/react) or any way you wish
 3. Clone the server repository
 4. Run the server using `python3 main.py
+
+## Some ending notes
+
+I'm sorry for not using Typescript (to myself) -- if someone would be so kind to port it 💋💋

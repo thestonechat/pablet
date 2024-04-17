@@ -9,18 +9,30 @@ function App() {
   const [touchStartTimestamp, setTouchStartTimestamp] = useState(0);
   const [touchCount, setTouchCount] = useState(0);
 
+  const [debugHistory, setDebugHistory] = useState([]); // basically console logs + timestamps + mouse coords
+  const DEBUG = true;
+
+  const debug = (message) => {
+    if (DEBUG) {
+      const timestamp = new Date().toLocaleTimeString();
+      const coords = { x: prevCoords.x, y: prevCoords.y };
+      setDebugHistory((prev) => [...prev, { timestamp, message, coords }]);
+
+      console.log(`[${timestamp}] ${message}`, coords);
+    }
+  };
+
   useEffect(() => {
+    debug("Connecting to WebSocket");
     const websocket = new WebSocket("ws://192.168.100.4:3244");
-    alert("Creating WebSocket");
+    debug("Connected to WebSocket");
 
     websocket.onopen = () => {
-      console.log("WebSocket connected");
-      alert("WebSocket connected");
+      debug("WebSocket connected");
     };
 
     websocket.onclose = () => {
-      console.log("WebSocket disconnected");
-      alert("WebSocket disconnected");
+      debug("WebSocket disconnected");
     };
 
     // Store the WebSocket instance in state
@@ -45,8 +57,9 @@ function App() {
   const handleMouseUp = () => {
     setIsMouseDown(false);
 
+    // TODO: Fix this, doesn't work
     if (touchCount === 2 && Date.now() - touchStartTimestamp < 500) {
-      console.log("Sending Double Click Event!");
+      debug("Sending Double Click Event!");
       ws.send(2);
     }
   };
@@ -99,7 +112,7 @@ function App() {
 
   const handleClick = (e) => {
     if (ws && e.clientX === prevCoords.x && e.clientY === prevCoords.y) {
-      console.log("Sending Click Event!", e);
+      debug("Sending Click Event!", e);
 
       ws.send(1);
     }
@@ -139,6 +152,21 @@ function App() {
           <span style={{ opacity: 0.5 }}>Y</span> <span id="y-value">0</span>
         </div>
       </div>
+
+      {DEBUG && (
+        // Shit doesn't auto-scroll yet
+        <section className="sm:w-96 w-full absolute flex flex-col bottom-0 right-0 p-4 bg-black padding-8 h-[40svh] overflow-y-auto break-words">
+          {debugHistory.map(({ timestamp, message, coords }, index) => (
+            <div key={index}>
+              <span className="text-gray-500">
+                {timestamp} {roundToDecimal(coords.x, 2)},
+                {roundToDecimal(coords.y, 2)}
+              </span>
+              <span className="text-gray-600"> {message}</span>
+            </div>
+          ))}
+        </section>
+      )}
     </main>
   );
 }

@@ -1,7 +1,13 @@
 import { useEffect, useState } from "react";
 import "./App.css";
+import classNames from "classnames";
 
 function App() {
+  const DEBUG = false;
+
+  const [enteredServerIP, setEnteredServerIP] = useState("192.168.1.");
+  const [serverIP, setServerIP] = useState(DEBUG ? "172.21.160.1" : undefined);
+  const [connectionStatus, setConnectionStatus] = useState("disconnected"); // connected, disconnected, connecting
   const [prevCoords, setPrevCoords] = useState({ x: -1, y: -1 });
   const [isMouseDown, setIsMouseDown] = useState(false);
   const [ws, setWs] = useState(null);
@@ -10,7 +16,6 @@ function App() {
   const [touchCount, setTouchCount] = useState(0);
 
   const [debugHistory, setDebugHistory] = useState([]); // basically console logs + timestamps + mouse coords
-  const DEBUG = true;
 
   const debug = (message) => {
     if (DEBUG) {
@@ -23,15 +28,20 @@ function App() {
   };
 
   useEffect(() => {
+    if (!serverIP) return;
+
+    setConnectionStatus("connecting");
     debug("Connecting to WebSocket");
-    const websocket = new WebSocket("ws://192.168.100.4:3244");
-    debug("Connected to WebSocket");
+    const websocket = new WebSocket(`ws://${serverIP}:3244`);
 
     websocket.onopen = () => {
+      setConnectionStatus("connected");
       debug("WebSocket connected");
     };
 
     websocket.onclose = () => {
+      setConnectionStatus("disconnected");
+      setServerIP(DEBUG ? "172.21.160.1" : undefined);
       debug("WebSocket disconnected");
     };
 
@@ -42,7 +52,7 @@ function App() {
     return () => {
       websocket.close();
     };
-  }, []);
+  }, [serverIP]);
 
   const handleMouseDown = (e) => {
     setPrevCoords({ x: e.clientX, y: e.clientY });
@@ -119,39 +129,79 @@ function App() {
   };
 
   useEffect(() => {
-    document.addEventListener("mousemove", handleMouseMove);
-    document.addEventListener("mouseup", handleMouseUp);
-    document.addEventListener("mousedown", handleMouseDown);
+    const main = document.querySelector("main");
+    main.addEventListener("mousemove", handleMouseMove);
+    main.addEventListener("mouseup", handleMouseUp);
+    main.addEventListener("mousedown", handleMouseDown);
 
-    document.addEventListener("touchstart", handleMouseDown);
-    document.addEventListener("touchmove", handleMouseMove);
-    document.addEventListener("touchend", handleMouseUp);
+    main.addEventListener("touchstart", handleMouseDown);
+    main.addEventListener("touchmove", handleMouseMove);
+    main.addEventListener("touchend", handleMouseUp);
 
-    document.addEventListener("click", handleClick);
+    main.addEventListener("click", handleClick);
 
     return () => {
-      document.removeEventListener("mousemove", handleMouseMove);
-      document.removeEventListener("mouseup", handleMouseUp);
-      document.removeEventListener("mousedown", handleMouseDown);
+      main.removeEventListener("mousemove", handleMouseMove);
+      main.removeEventListener("mouseup", handleMouseUp);
+      main.removeEventListener("mousedown", handleMouseDown);
 
-      document.removeEventListener("touchstart", handleMouseDown);
-      document.removeEventListener("touchmove", handleMouseMove);
-      document.removeEventListener("touchend", handleMouseUp);
+      main.removeEventListener("touchstart", handleMouseDown);
+      main.removeEventListener("touchmove", handleMouseMove);
+      main.removeEventListener("touchend", handleMouseUp);
 
-      document.removeEventListener("click", handleClick);
+      main.removeEventListener("click", handleClick);
     };
   }, [isMouseDown, prevCoords]);
 
   return (
-    <main>
-      <div className="border-box">
-        <div>
-          <span style={{ opacity: 0.5 }}>X</span> <span id="x-value">0</span>
+    <>
+      {!serverIP && (
+        <div className="absolute flex items-center justify-center z-10 p-8 bg-black bg-opacity-20 backdrop-blur w-screen h-screen">
+          <div className="bg-black flex flex-col text-center max-w-96 w-full gap-2 border-[1px] border-white border-opacity-30 bg-opacity-50 backdrop-blur-xl p-4 rounded-md">
+            <h1 className="text-2xl font-bold">Connect to your server</h1>
+            <input
+              type="text"
+              className="p-2 rounded-md bg-black outline-none border-[1px] border-opacity-30 border-white"
+              placeholder="Server IP"
+              value={enteredServerIP}
+              onChange={(e) => setEnteredServerIP(e.target.value)}
+            />
+            <button
+              className="p-2 text-black bg-white w-full rounded-md"
+              onClick={() => {
+                setServerIP(enteredServerIP);
+                debug(`Connecting to ${serverIP}`);
+              }}
+            >
+              Connect
+            </button>
+          </div>
         </div>
-        <div>
-          <span style={{ opacity: 0.5 }}>Y</span> <span id="y-value">0</span>
+      )}
+
+      <main>
+        <div className="absolute left-2 top-2">
+          <span
+            className={classNames("font-bold", {
+              "text-green-500": connectionStatus === "connected",
+              "text-red-500": connectionStatus === "disconnected",
+              "text-yellow-500": connectionStatus === "connecting",
+            })}
+          >
+            {connectionStatus.toUpperCase()}
+          </span>{" "}
+          {connectionStatus === "disconnected" ? "FROM" : "TO"} {serverIP}
         </div>
-      </div>
+
+        <div className="border-box">
+          <div>
+            <span style={{ opacity: 0.5 }}>X</span> <span id="x-value">0</span>
+          </div>
+          <div>
+            <span style={{ opacity: 0.5 }}>Y</span> <span id="y-value">0</span>
+          </div>
+        </div>
+      </main>
 
       {DEBUG && (
         // Shit doesn't auto-scroll yet
@@ -167,7 +217,7 @@ function App() {
           ))}
         </section>
       )}
-    </main>
+    </>
   );
 }
 
